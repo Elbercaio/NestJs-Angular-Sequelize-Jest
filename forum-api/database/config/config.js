@@ -1,0 +1,24 @@
+try {
+  require('dotenv').config({ path: '${__dirname}/../.env' });
+} catch (e) {
+  console.warn('dotenv not found, running in docker?');
+}
+
+module.exports = {
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  dialect: process.env.DB_CONNECTION,
+  dialectOptions:
+    process.env.SSL_REQUIRED === 'true'
+      ? {
+          ssl: {
+            required: true,
+          },
+        }
+      : {},
+  seederStorage: 'sequelize',
+  seederStorageTableName: 'sequelize_seeds',
+};

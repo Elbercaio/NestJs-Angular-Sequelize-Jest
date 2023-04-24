@@ -1,0 +1,56 @@
+version: "3.3"
+
+networks:
+  database:
+
+services:
+  mysql:
+    image: mysql:8.0.27
+    hostname: mysql
+    restart: always
+    ports:
+      - 3308:3306
+
+    command: --default-authentication-plugin=mysql_native_password
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mysql
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+    deploy:
+      resources:
+        limits:
+          memory: 2000m
+
+    networks:
+      - database
+
+  server:
+    build: ./api
+    restart: always
+    networks:
+      - database
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=mysql
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+
+  client:
+    build: ./app
+    restart: always
+    ports:
+      - "4200:4200"
+    depends_on:
+      - server
+
+volumes:
+  dbdata:
