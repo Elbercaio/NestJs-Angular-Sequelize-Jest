@@ -21,22 +21,22 @@ export class UsersService {
   async findAll(filters: FilterOptionsInput = {}): Promise<IUser[]> {
     try {
       const where: FilterObject = createFilters(filters);
-      const user = await this.userModel.findAll({
+      const user: User[] = await this.userModel.findAll({
         order: [['name', 'ASC']],
         where,
       });
       return user;
     } catch (error) {
       const { message, status } = error;
-      const statusCode = status || HttpStatus.BAD_REQUEST;
-      const msgError = message || 'Falha ao buscar usuários.';
+      const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
+      const msgError: string = message || 'Falha ao buscar usuários.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }
 
   async findOne(id: number): Promise<IUser> {
     try {
-      const user = await this.userModel.findByPk(id);
+      const user: User | null = await this.userModel.findByPk(id);
 
       if (!user) {
         throw new HttpException({ message: 'Usuário não encontrado.' }, HttpStatus.NOT_FOUND);
@@ -45,8 +45,8 @@ export class UsersService {
       return user;
     } catch (error) {
       const { message, status } = error;
-      const statusCode = status || HttpStatus.BAD_REQUEST;
-      const msgError = message || 'Falha ao buscar usuário.';
+      const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
+      const msgError: string = message || 'Falha ao buscar usuário.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }
@@ -56,7 +56,7 @@ export class UsersService {
     try {
       const { email, cpf } = createUserDto;
 
-      const emailAlreadyExists = await this.userModel.findOne({
+      const emailAlreadyExists: User | null = await this.userModel.findOne({
         where: {
           email,
         },
@@ -66,7 +66,7 @@ export class UsersService {
         throw new HttpException({ message: 'Esse email já se encontra cadastrado em nosso sistema.' }, HttpStatus.BAD_REQUEST);
       }
 
-      const cpfAlreadyExists = await this.userModel.findOne({
+      const cpfAlreadyExists: User | null = await this.userModel.findOne({
         where: {
           cpf,
         },
@@ -85,42 +85,40 @@ export class UsersService {
     } catch (error) {
       await transaction.rollback();
       const { message, status } = error;
-      const statusCode = status || HttpStatus.BAD_REQUEST;
-      const msgError = message || 'Falha ao criar usuário.';
+      const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
+      const msgError: string = message || 'Falha ao criar usuário.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<IDataMessage<IUser>> {
+  async update(id: number, updateDto: UpdateUserDto): Promise<IDataMessage<IUser>> {
     const transaction = await this.sequelize.transaction();
     try {
-      const user = await this.findOne(id);
+      const user = (await this.findOne(id)) as User;
 
       if (!user) {
         throw new HttpException({ message: 'Usuário não encontrado.' }, HttpStatus.NOT_FOUND);
       }
 
-      const { email = null } = updateUserDto;
+      if (updateDto?.email && user?.email !== updateDto?.email) {
+        const emailAlreadyExists: User | null = await this.userModel.findOne({
+          where: {
+            email: updateDto.email,
+            id: { [Op.ne]: id },
+          },
+        });
 
-      const emailAlreadyExists: User = await this.userModel.findOne({
-        where: {
-          email,
-          id: { [Op.ne]: id },
-        },
-      });
-
-      if (emailAlreadyExists) {
-        throw new HttpException({ message: 'Esse email já se encontra cadastrado em nosso sistema.' }, HttpStatus.BAD_REQUEST);
+        if (emailAlreadyExists) {
+          throw new HttpException({ message: 'Esse email já se encontra cadastrado em nosso sistema.' }, HttpStatus.BAD_REQUEST);
+        }
       }
 
-      if (updateUserDto.password) {
-        updateUserDto.password = await bcryptjs.hash(updateUserDto.password, 10);
+      if (updateDto.password) {
+        updateDto.password = await bcryptjs.hash(updateDto.password, 10);
       }
-      const updatedUser = await user.update(updateUser, {
+
+      const updatedUser: User = await user.update(Object.assign(user, updateDto), {
         transaction,
-        where: {
-          id,
-        },
       });
       await transaction.commit();
 
@@ -128,15 +126,15 @@ export class UsersService {
     } catch (error) {
       await transaction.rollback();
       const { message, status } = error;
-      const statusCode = status || HttpStatus.BAD_REQUEST;
-      const msgError = message || 'Falha ao atualizar usuário.';
+      const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
+      const msgError: string = message || 'Falha ao atualizar usuário.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }
 
   async remove(id: number): Promise<IMessage> {
     try {
-      const user = await this.userModel.findOne({
+      const user: User | null = await this.userModel.findOne({
         where: {
           id,
         },
@@ -146,16 +144,12 @@ export class UsersService {
         throw new HttpException({ message: 'Usuário não encontrado.' }, HttpStatus.NOT_FOUND);
       }
 
-      await this.userModel.destroy({
-        where: {
-          id,
-        },
-      });
+      await user.destroy();
       return { message: 'Usuário excluído.' };
     } catch (error) {
       const { message, status } = error;
-      const statusCode = status || HttpStatus.BAD_REQUEST;
-      const msgError = message || 'Falha ao remover usuário.';
+      const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
+      const msgError: string = message || 'Falha ao remover usuário.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }
