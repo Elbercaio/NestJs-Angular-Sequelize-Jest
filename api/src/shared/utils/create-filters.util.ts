@@ -9,18 +9,18 @@ export interface FilterObject {
   [key: string]: any;
 }
 
-const isNaN = (param): boolean => typeof param === 'string';
+const isNaN = (param: string | number): boolean => typeof param === 'string';
 
-export const createFilters = (filters, ignoreRelation = [], acceptFalsy = []): FilterObject => {
+export const createFilters = (filters: any, ignoreRelation: string[] = [], acceptFalsy: string[] = []): FilterObject => {
   const where = [];
   for (const key in filters) {
     if (filters.hasOwnProperty(key) && !ignoreRelation.includes(key) && filters[key]) {
-      const item = {};
+      const item: any = {};
       const element = filters[key];
       item[key] = isNaN(element) ? { [Op.like]: `%${element}%` } : { [Op.eq]: element };
       where.push(item);
     } else if (filters.hasOwnProperty(key) && !ignoreRelation.includes(key) && acceptFalsy.includes(key)) {
-      const item = {};
+      const item: any = {};
       const element = filters[key];
       item[key] = isNaN(element) ? { [Op.like]: `%${element}%` } : { [Op.eq]: element };
       where.push(item);

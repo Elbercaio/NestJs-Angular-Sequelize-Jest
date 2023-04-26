@@ -1,6 +1,6 @@
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphQLModule } from '@nestjs/graphql';
-import { UserModule } from '../../user/user.module';
+import { UsersModule } from '../modules/users/users.module';
 
 export const graphql = GraphQLModule.forRoot<ApolloDriverConfig>({
   driver: ApolloDriver,
@@ -9,5 +9,5 @@ export const graphql = GraphQLModule.forRoot<ApolloDriverConfig>({
   buildSchemaOptions: {
     dateScalarMode: 'isoDate',
   },
-  include: [UserModule],
+  include: [UsersModule],
 });

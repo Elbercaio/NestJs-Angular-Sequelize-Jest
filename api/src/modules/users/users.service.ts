@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import bcryptjs from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 import { Op } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { IDataMessage, IMessage, IUser } from '../../shared/interfaces';
@@ -21,15 +21,14 @@ export class UsersService {
   async findAll(filters: FilterOptionsInput = {}): Promise<IUser[]> {
     try {
       const where: FilterObject = createFilters(filters);
-      const user: User[] = await this.userModel.findAll({
+      return await this.userModel.findAll({
         order: [['name', 'ASC']],
         where,
       });
-      return user;
     } catch (error) {
       const { message, status } = error;
       const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
-      const msgError: string = message || 'Falha ao buscar usuários.';
+      const msgError: string = message || 'Failed to fetch users.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }
@@ -39,22 +38,22 @@ export class UsersService {
       const user: User | null = await this.userModel.findByPk(id);
 
       if (!user) {
-        throw new HttpException({ message: 'Usuário não encontrado.' }, HttpStatus.NOT_FOUND);
+        throw new HttpException({ message: 'User not found.' }, HttpStatus.NOT_FOUND);
       }
 
       return user;
     } catch (error) {
       const { message, status } = error;
       const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
-      const msgError: string = message || 'Falha ao buscar usuário.';
+      const msgError: string = message || 'Failed to fetch user.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }
 
-  async create(createUserDto: CreateUserDto): Promise<IUser> {
+  async create(createDto: CreateUserDto): Promise<IUser> {
     const transaction = await this.sequelize.transaction();
     try {
-      const { email, cpf } = createUserDto;
+      const { email, cpf } = createDto;
 
       const emailAlreadyExists: User | null = await this.userModel.findOne({
         where: {
@@ -63,7 +62,7 @@ export class UsersService {
       });
 
       if (emailAlreadyExists) {
-        throw new HttpException({ message: 'Esse email já se encontra cadastrado em nosso sistema.' }, HttpStatus.BAD_REQUEST);
+        throw new HttpException({ message: 'This email is already registered in our system.' }, HttpStatus.BAD_REQUEST);
       }
 
       const cpfAlreadyExists: User | null = await this.userModel.findOne({
@@ -73,12 +72,11 @@ export class UsersService {
       });
 
       if (cpfAlreadyExists) {
-        throw new HttpException({ message: 'Esse cpf já se encontra cadastrado em nosso sistema.' }, HttpStatus.BAD_REQUEST);
+        throw new HttpException({ message: 'This cpf is already registered in our system.' }, HttpStatus.BAD_REQUEST);
       }
 
-      const user: IUser = await this.userModel.create(createUserDto as User, { transaction });
+      const user: IUser = await this.userModel.create(createDto as User, { transaction });
 
-      user.password = '';
       await transaction.commit();
 
       return user;
@@ -86,7 +84,7 @@ export class UsersService {
       await transaction.rollback();
       const { message, status } = error;
       const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
-      const msgError: string = message || 'Falha ao criar usuário.';
+      const msgError: string = message || 'Failed to create user.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }
@@ -94,10 +92,10 @@ export class UsersService {
   async update(id: number, updateDto: UpdateUserDto): Promise<IDataMessage<IUser>> {
     const transaction = await this.sequelize.transaction();
     try {
-      const user = (await this.findOne(id)) as User;
+      const user: User | null = await this.userModel.findByPk(id);
 
       if (!user) {
-        throw new HttpException({ message: 'Usuário não encontrado.' }, HttpStatus.NOT_FOUND);
+        throw new HttpException({ message: 'User not found.' }, HttpStatus.NOT_FOUND);
       }
 
       if (updateDto?.email && user?.email !== updateDto?.email) {
@@ -109,12 +107,17 @@ export class UsersService {
         });
 
         if (emailAlreadyExists) {
-          throw new HttpException({ message: 'Esse email já se encontra cadastrado em nosso sistema.' }, HttpStatus.BAD_REQUEST);
+          throw new HttpException({ message: 'This email is already registered in our system.' }, HttpStatus.BAD_REQUEST);
         }
       }
 
-      if (updateDto.password) {
-        updateDto.password = await bcryptjs.hash(updateDto.password, 10);
+      if (updateDto?.password && updateDto?.oldPassword) {
+        const correctPassword: boolean = await user.comparePassword(updateDto.oldPassword);
+        if (!correctPassword) {
+          throw new HttpException({ message: 'Incorrect password.' }, HttpStatus.BAD_REQUEST);
+        }
+        updateDto.password = await bcrypt.hash(updateDto.password, 10);
+        delete updateDto?.oldPassword;
       }
 
       const updatedUser: User = await user.update(Object.assign(user, updateDto), {
@@ -122,34 +125,32 @@ export class UsersService {
       });
       await transaction.commit();
 
-      return { data: updatedUser, message: 'Usuário atualizado com sucesso.' };
+      return { data: updatedUser, message: 'User updated successfully.' };
     } catch (error) {
       await transaction.rollback();
       const { message, status } = error;
       const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
-      const msgError: string = message || 'Falha ao atualizar usuário.';
+      const msgError: string = message || 'Failed to update user.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }
 
   async remove(id: number): Promise<IMessage> {
+    const transaction = await this.sequelize.transaction();
     try {
-      const user: User | null = await this.userModel.findOne({
-        where: {
-          id,
-        },
-      });
-
+      const user: User | null = await this.userModel.findByPk(id);
       if (!user) {
-        throw new HttpException({ message: 'Usuário não encontrado.' }, HttpStatus.NOT_FOUND);
+        throw new HttpException({ message: 'User not found.' }, HttpStatus.NOT_FOUND);
       }
 
-      await user.destroy();
-      return { message: 'Usuário excluído.' };
+      await user.destroy({ transaction });
+      await transaction.commit();
+      return { message: 'User deleted successfully.' };
     } catch (error) {
+      await transaction.rollback();
       const { message, status } = error;
       const statusCode: HttpStatus = status || HttpStatus.BAD_REQUEST;
-      const msgError: string = message || 'Falha ao remover usuário.';
+      const msgError: string = message || 'Failed to delete user.';
       throw new HttpException({ message: msgError }, statusCode);
     }
   }

@@ -63,11 +63,11 @@ export class IsCpf implements ValidatorConstraintInterface {
   }
 
   defaultMessage(validationArguments?: ValidationArguments): string {
-    if (!validationArguments.value) {
+    if (!validationArguments?.value) {
       return 'Campo CPF é obrigatório.';
     }
 
-    if (validationArguments.value.length !== 11) {
+    if (validationArguments?.value.length !== 11) {
       return 'Campo CPF deve ser igual a 11 caracteres.';
     }
 

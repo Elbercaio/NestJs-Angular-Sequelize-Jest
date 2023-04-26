@@ -8,13 +8,13 @@ import { UsersService } from './users.service';
 export class UsersResolver {
   constructor(private readonly usersService: UsersService) {}
 
-  @Query(() => [User])
-  async users(@Args('filters') filters: FilterOptionsInput): Promise<IUser[]> {
+  @Query(() => [User], { name: 'users' })
+  async findAll(@Args('filters') filters: FilterOptionsInput): Promise<IUser[]> {
     return this.usersService.findAll(filters);
   }
 
-  @Query(() => User)
-  async user(@Args('id', { type: () => Int }) id: number): Promise<IUser> {
+  @Query(() => User, { name: 'user' })
+  async findOne(@Args('id', { type: () => Int }) id: number): Promise<IUser> {
     return this.usersService.findOne(id);
   }
 }

@@ -1,4 +1,11 @@
 import { SequelizeModule } from '@nestjs/sequelize';
+import * as dotenv from 'dotenv';
+
+try {
+  dotenv.config({ path: '.env' });
+} catch (e) {
+  console.warn('dotenv not found, docker env vars will be used');
+}
 
 export const database = SequelizeModule.forRoot({
   username: process.env.DB_USERNAME,
